@@ -95,3 +95,51 @@ def test_created_at_is_iso8601_with_shanghai_timezone() -> None:
     assert offset.total_seconds() == 8 * 3600
     assert normalized.created_at.endswith("+08:00")
     assert normalized.date_str == parsed.date().isoformat()
+
+
+def test_normalize_category_mapping_tolerates_missing_space_after_emoji() -> None:
+    raw_record = {
+        "record_id": "rec_emoji_nospace",
+        "fields": {
+            "标题": "Harness Engineering：AI时代的驾驭工程",
+            "分类": "📖技术教程",
+            "标签": ["harness-engineering", "技术教程"],
+            "记录时间": 1774526511000,
+        },
+    }
+
+    normalized = normalize(cast(FeishuRawRecord, raw_record))
+
+    assert normalized.target_dir == "剪藏文件/技术教程"
+
+
+def test_normalize_falls_back_to_matching_tag_when_category_missing() -> None:
+    raw_record = {
+        "record_id": "rec_tag_fallback_missing_category",
+        "fields": {
+            "标题": "李继刚Skills：内容转精致长图信息卡",
+            "分类": "",
+            "标签": ["skills", "工具推荐", "可视化"],
+            "记录时间": 1774526511000,
+        },
+    }
+
+    normalized = normalize(cast(FeishuRawRecord, raw_record))
+
+    assert normalized.target_dir == "剪藏文件/工具推荐"
+
+
+def test_normalize_falls_back_to_matching_tag_when_category_unmapped() -> None:
+    raw_record = {
+        "record_id": "rec_tag_fallback_unmapped_category",
+        "fields": {
+            "标题": "用Claude搭建本地AI健康管理体系",
+            "分类": "案例拆解",
+            "标签": ["工作流", "实战案例", "obsidian"],
+            "记录时间": 1774526511000,
+        },
+    }
+
+    normalized = normalize(cast(FeishuRawRecord, raw_record))
+
+    assert normalized.target_dir == "剪藏文件/实战案例"

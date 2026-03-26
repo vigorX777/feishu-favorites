@@ -47,6 +47,38 @@ class NormalizedRecord:
     date_str: str
 
 
+def _normalize_category_key(value: str) -> str:
+    return " ".join(value.strip().split())
+
+
+def _build_category_alias_map(mapping: dict[str, str]) -> dict[str, str]:
+    alias_map: dict[str, str] = {}
+    for raw_key, target in mapping.items():
+        normalized_key = _normalize_category_key(raw_key)
+        alias_map.setdefault(normalized_key, target)
+        alias_map.setdefault(normalized_key.replace(" ", ""), target)
+    return alias_map
+
+
+def _resolve_target_dir(category_raw: str, tags: list[str], mapping: dict[str, str], fallback_dir: str) -> str:
+    alias_map = _build_category_alias_map(mapping)
+    normalized_category = _normalize_category_key(category_raw)
+    if normalized_category:
+        direct_match = alias_map.get(normalized_category) or alias_map.get(normalized_category.replace(" ", ""))
+        if direct_match:
+            return direct_match
+
+    for tag in tags:
+        normalized_tag = _normalize_category_key(tag)
+        if not normalized_tag:
+            continue
+        tag_match = alias_map.get(normalized_tag) or alias_map.get(normalized_tag.replace(" ", ""))
+        if tag_match:
+            return tag_match
+
+    return fallback_dir
+
+
 def _safe_text(value: Any, fallback: str = "") -> str:
     if value is None:
         return fallback
@@ -145,7 +177,7 @@ def normalize(
         record_id=_safe_text(raw_record.get("record_id"), fallback=""),
         title=title,
         category_raw=category_raw,
-        target_dir=mapping.get(category_raw, fallback_dir),
+        target_dir=_resolve_target_dir(category_raw, tags, mapping, fallback_dir),
         source=source,
         author=author,
         tags=tags,
